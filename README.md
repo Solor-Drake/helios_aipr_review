@@ -92,6 +92,13 @@ npm run dev
 
 后端运行后访问 http://localhost:8000/docs 查看 Swagger API 文档。
 
+### 运行测试
+
+```bash
+source venv/bin/activate
+python -m pytest server/tests/ -v
+```
+
 ### Docker 部署
 
 ```bash
@@ -147,6 +154,7 @@ chore: 更新 .gitignore
 | `server/prompts/` | Agent System Prompt 模板 |
 | `server/data/` | SQLite 数据库文件 |
 | `server/tests/` | 后端测试 |
+| `pyproject.toml` | pytest 配置 |
 | `web/src/components/` | Vue 组件 |
 | `web/src/api/` | 前端 API 调用封装 |
 | `docs/` | 设计文档 |
