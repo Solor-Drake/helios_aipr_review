@@ -113,7 +113,8 @@ class TestCallLLM:
         mock_completion = AsyncMock()
         mock_completion.choices = [mock_choice]
 
-        with patch.object(agent.client.chat.completions, "create", return_value=mock_completion):
+        mock_create = AsyncMock(return_value=mock_completion)
+        with patch.object(agent.client.chat.completions, "create", mock_create):
             result = await agent._call_llm("system", "user")
             assert result == '{"findings": []}'
 
@@ -130,7 +131,8 @@ class TestCallLLM:
         mock_completion = AsyncMock()
         mock_completion.choices = [mock_choice]
 
-        with patch.object(agent.client.chat.completions, "create", return_value=mock_completion):
+        mock_create = AsyncMock(return_value=mock_completion)
+        with patch.object(agent.client.chat.completions, "create", mock_create):
             with pytest.raises(RuntimeError, match="空响应"):
                 await agent._call_llm("system", "user")
 
@@ -138,10 +140,11 @@ class TestCallLLM:
     async def test_call_llm_api_error_raises(self) -> None:
         """API 调用异常时抛出 RuntimeError。"""
         agent = MockSecurityAgent()
+        mock_create = AsyncMock(side_effect=Exception("网络超时"))
         with patch.object(
             agent.client.chat.completions,
             "create",
-            side_effect=Exception("网络超时"),
+            mock_create,
         ):
             with pytest.raises(RuntimeError, match="API 调用失败"):
                 await agent._call_llm("system", "user")
@@ -168,7 +171,8 @@ class TestReview:
         mock_completion = AsyncMock()
         mock_completion.choices = [mock_choice]
 
-        with patch.object(agent.client.chat.completions, "create", return_value=mock_completion):
+        mock_create = AsyncMock(return_value=mock_completion)
+        with patch.object(agent.client.chat.completions, "create", mock_create):
             report = await agent.review(sample_code_context, sample_diff)
 
         assert report.agent == AgentType.SECURITY
