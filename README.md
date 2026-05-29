@@ -96,7 +96,8 @@ npm run dev
 
 ```bash
 source venv/bin/activate
-python -m pytest server/tests/ -v
+# 如果系统装有 ROS，需清空 PYTHONPATH 避免 Python 3.10 插件冲突
+PYTHONPATH="" python -m pytest server/tests/ -v
 ```
 
 ### Docker 部署
