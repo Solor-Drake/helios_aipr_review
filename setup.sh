@@ -52,15 +52,19 @@ fi
 echo ""
 
 # 3. 激活虚拟环境并安装依赖
-echo "[3/5] 安装 Python 依赖..."
+echo "[3/6] 安装 Python 依赖..."
 source venv/bin/activate
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
-echo "  ✅ 依赖安装完成"
+echo "  ✅ 生产依赖安装完成"
+
+echo "[4/6] 安装测试依赖..."
+pip install pytest pytest-asyncio -q
+echo "  ✅ 测试依赖安装完成"
 echo ""
 
 # 4. 配置环境变量
-echo "[4/5] 配置环境变量..."
+echo "[5/6] 配置环境变量..."
 if [ ! -f ".env" ]; then
     cp .env.example .env
     echo "  ✅ 已从 .env.example 创建 .env 文件"
@@ -73,7 +77,7 @@ fi
 echo ""
 
 # 5. 验证
-echo "[5/5] 验证环境..."
+echo "[6/6] 验证环境..."
 python -c "import fastapi; import uvicorn; import httpx; import openai; import github; import aiosqlite; import pydantic; import dotenv; print('所有依赖导入成功')"
 echo ""
 
