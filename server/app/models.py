@@ -116,6 +116,10 @@ class AgentFinding(BaseModel):
     title: str = Field(..., description="问题标题")
     description: str = Field(..., description="问题详细描述")
     suggestion: str = Field(..., description="修复建议")
+    agent: AgentType = Field(
+        default=AgentType.ARBITRATOR,
+        description="来源 Agent 类型，仲裁后可能变为 arbitrator",
+    )
 
 
 class AgentReport(BaseModel):
