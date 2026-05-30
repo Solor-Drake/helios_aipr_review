@@ -17,3 +17,17 @@ export async function submitReview(prUrl) {
   }
   return resp.json()
 }
+
+/**
+ * 查询评审任务状态和结果。
+ * @param {string} taskId - 任务 ID
+ * @returns {Promise<{task_id: string, status: string, findings: Array}>}
+ */
+export async function getReviewResult(taskId) {
+  const resp = await fetch(`${BASE_URL}/review/${encodeURIComponent(taskId)}`)
+  if (!resp.ok) {
+    if (resp.status === 404) return null
+    throw new Error(`查询失败: ${resp.status}`)
+  }
+  return resp.json()
+}
