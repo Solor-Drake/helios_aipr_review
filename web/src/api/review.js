@@ -19,6 +19,17 @@ export async function submitReview(prUrl) {
 }
 
 /**
+ * 查询修复验证对比数据。
+ * @param {string} taskId - 任务 ID
+ * @returns {Promise<{comparison: Object, fixed_items: Array, new_items: Array, unresolved_items: Array}>}
+ */
+export async function getReviewHistory(taskId) {
+  const resp = await fetch(`${BASE_URL}/review/${encodeURIComponent(taskId)}/history`)
+  if (!resp.ok) throw new Error(`查询历史失败: ${resp.status}`)
+  return resp.json()
+}
+
+/**
  * 查询评审任务状态和结果。
  * @param {string} taskId - 任务 ID
  * @returns {Promise<{task_id: string, status: string, findings: Array}>}
