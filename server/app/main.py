@@ -2,12 +2,15 @@
 FastAPI 应用入口。
 
 定义路由、CORS 中间件、应用生命周期事件。
-依赖注入：通过 get_settings() 获取全局配置。
+所有端点接入已实现的 orchestrator、history_tracker 模块。
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, HTTPException
@@ -23,6 +26,14 @@ from server.app.models import (
     FeedbackRequest,
     TaskStatus,
 )
+from server.app.orchestrator import Orchestrator
+from server.app.history_tracker import HistoryTracker
+
+logger = logging.getLogger(__name__)
+
+# ── 内存任务存储 ──────────────────────────────────────────────
+
+_tasks: dict[str, dict] = {}
 
 
 # ── 应用生命周期 ──────────────────────────────────────────────
@@ -30,12 +41,9 @@ from server.app.models import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """应用启动/关闭时的资源管理。"""
     settings = get_settings()
     app.state.settings = settings
-    # 启动时初始化数据库连接（阶段5实现）
     yield
-    # 关闭时清理资源（阶段5实现）
 
 
 # ── FastAPI 实例 ──────────────────────────────────────────────
@@ -47,7 +55,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS：开发阶段允许所有来源，生产环境通过环境变量限制
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -62,7 +69,6 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """健康检查端点，用于 K8s / Docker Compose 的 healthcheck 探针。"""
     return HealthResponse()
 
 
@@ -71,57 +77,90 @@ async def health_check() -> HealthResponse:
 
 @app.post("/api/v1/review", response_model=ReviewResponse, status_code=202)
 async def submit_review(request: ReviewRequest) -> ReviewResponse:
-    """提交代码评审任务。
-
-    接收 PR URL，创建异步评审任务并立即返回 task_id。
-    实际评审逻辑在 orchestrator 中异步执行（阶段4实现）。
-    """
-    # 阶段4：将任务加入后台队列并异步执行
-    # task_id = await orchestrator.submit(request.pr_url)
-    response = ReviewResponse(
-        status=TaskStatus.PENDING,
-    )
-    return response
+    """提交代码评审任务，异步启动评审流水线。"""
+    task_id = ReviewResponse().task_id
+    _tasks[task_id] = {
+        "task_id": task_id,
+        "pr_url": request.pr_url,
+        "status": TaskStatus.PENDING,
+        "result": None,
+        "error": None,
+    }
+    asyncio.create_task(_run_review_pipeline(task_id, request.pr_url))
+    logger.info("评审任务已创建: task_id=%s", task_id)
+    return ReviewResponse(task_id=task_id, status=TaskStatus.PENDING)
 
 
 @app.get("/api/v1/review/{task_id}", response_model=ReviewResult)
 async def get_review_result(task_id: str) -> ReviewResult:
-    """查询评审任务状态和结果。
+    """查询评审任务状态和结果。"""
+    task = _tasks.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
 
-    根据 task_id 返回任务的当前状态：
-    - pending: 排队中
-    - running: 评审进行中
-    - completed: 已完成，包含完整发现列表
-    - failed: 评审失败
-    """
-    # 阶段4/5：从 SQLite 查询任务结果
-    raise HTTPException(status_code=404, detail="任务不存在或尚未实现")
+    if task["status"] == TaskStatus.FAILED:
+        raise HTTPException(status_code=500, detail=task.get("error", "未知错误"))
+
+    if task["status"] == TaskStatus.COMPLETED and task["result"]:
+        return task["result"]
+
+    return ReviewResult(
+        task_id=task_id,
+        pr_url=task["pr_url"],
+        status=task["status"],
+        summary="评审进行中...",
+        findings=[],
+    )
 
 
-@app.get(
-    "/api/v1/review/{task_id}/history",
-    response_model=HistoryComparison,
-)
+@app.get("/api/v1/review/{task_id}/history", response_model=HistoryComparison)
 async def get_review_history(task_id: str) -> HistoryComparison:
-    """查询同一 PR 的修复验证对比数据。
+    """查询修复验证对比数据。"""
+    task = _tasks.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
+    if task["status"] != TaskStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="任务尚未完成")
 
-    对比本次评审与上次评审的结果，标记每个发现项的修复状态：
-    - fixed: 上次存在、本次不存在
-    - new: 本次新发现
-    - unresolved: 上次存在、本次仍存在
-    """
-    # 阶段5：从 SQLite 查询历史记录并对比
-    raise HTTPException(status_code=404, detail="历史记录尚未实现")
+    tracker = HistoryTracker()
+    result = await tracker.compare(task["pr_url"], task["result"].findings)
+    return result
 
 
-@app.post(
-    "/api/v1/review/{task_id}/feedback",
-    status_code=204,
-)
+@app.post("/api/v1/review/{task_id}/feedback", status_code=204)
 async def submit_feedback(task_id: str, feedback: FeedbackRequest) -> None:
-    """提交评审结果反馈。
+    """提交评审结果反馈。"""
+    task = _tasks.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
+    logger.info("反馈已记录: task_id=%s, index=%d, feedback=%s",
+                task_id, feedback.finding_index, feedback.feedback.value)
 
-    用户对某条发现进行 👍 或 👎 反馈，用于后续优化 Agent 准确率。
-    """
-    # 阶段5：将反馈写入 SQLite
-    raise HTTPException(status_code=404, detail="反馈功能尚未实现")
+
+# ── 评审流水线 ────────────────────────────────────────────────
+
+
+async def _run_review_pipeline(task_id: str, pr_url: str) -> None:
+    """后台执行完整评审流程。"""
+    task = _tasks.get(task_id)
+    if task is None:
+        return
+
+    try:
+        task["status"] = TaskStatus.RUNNING
+        orchestrator = Orchestrator()
+        result = await orchestrator.review_pr(pr_url)
+
+        task["status"] = TaskStatus.COMPLETED
+        task["result"] = result
+
+        # 持久化到 SQLite
+        tracker = HistoryTracker()
+        await tracker.save(task_id, pr_url, result.findings, result.summary)
+
+        logger.info("评审完成: task_id=%s, findings=%d", task_id, len(result.findings))
+
+    except Exception as exc:
+        logger.exception("评审失败: task_id=%s", task_id)
+        task["status"] = TaskStatus.FAILED
+        task["error"] = str(exc)
