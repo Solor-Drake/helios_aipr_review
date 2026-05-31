@@ -204,12 +204,12 @@ class ContextBuilder:
             ChangeContext 列表，每个对应一个变更函数。
         """
         try:
-            from tree_sitter import Parser
+            from tree_sitter import Parser, Language
         except ImportError:
             logger.warning("tree-sitter 未安装")
             return []
 
-        parser = Parser(lang)
+        parser = Parser(Language(lang))
         source_bytes = source_code.encode("utf-8")
         tree = parser.parse(source_bytes)
 

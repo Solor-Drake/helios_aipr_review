@@ -1,0 +1,51 @@
+name: AI PR Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_url:
+        description: 'PR URL to review'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger AI Review
+        env:
+          REVIEW_API_URL: ${{ secrets.REVIEW_API_URL }}
+          REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
+        run: |
+          PR_URL="${{ inputs.pr_url }}"
+          echo "开始评审 PR: $PR_URL"
+
+          TASK_RESP=$(curl -s -X POST "${REVIEW_API_URL}/api/v1/review" \
+            -H "Content-Type: application/json" \
+            -d "{\"pr_url\": \"${PR_URL}\", \"review_mode\": \"auto\"}")
+
+          TASK_ID=$(echo "$TASK_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['task_id'])")
+          echo "评审任务已创建: $TASK_ID"
+
+          # 轮询等待评审完成
+          for i in $(seq 1 60); do
+            sleep 10
+            RESULT=$(curl -s "${REVIEW_API_URL}/api/v1/review/${TASK_ID}")
+            STATUS=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])")
+            echo "状态: $STATUS"
+            if [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ]; then
+              break
+            fi
+          done
+
+          # 获取最终结果并保存
+          FINAL=$(curl -s "${REVIEW_API_URL}/api/v1/review/${TASK_ID}")
+          echo "$FINAL" > review-result.json
+
+          SUMMARY=$(echo "$FINAL" | python3 -c "import sys,json; print(json.load(sys.stdin).get('summary','评审完成'))")
+          echo "评审结果: $SUMMARY"
