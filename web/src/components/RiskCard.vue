@@ -29,7 +29,7 @@ async function setHumanStatus(status) {
 </script>
 
 <template>
-  <div :class="['risk-card', riskClass(finding.risk_level)]">
+  <div :class="['risk-card', riskClass(finding.risk_level), { dismissed: humanStatus === 'false_positive' }]">
     <div class="risk-header">
       <span class="severity-badge">{{ finding.severity }}</span>
       <span class="agent-badge">{{ finding.agent }}</span>
