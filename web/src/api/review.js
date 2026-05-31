@@ -5,11 +5,11 @@ const BASE_URL = '/api/v1'
  * @param {string} prUrl - GitHub/GitLab PR URL
  * @returns {Promise<{task_id: string, status: string}>}
  */
-export async function submitReview(prUrl) {
+export async function submitReview(prUrl, reviewMode = 'auto') {
   const resp = await fetch(`${BASE_URL}/review`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pr_url: prUrl }),
+    body: JSON.stringify({ pr_url: prUrl, review_mode: reviewMode }),
   })
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
@@ -31,6 +31,21 @@ export async function submitFeedback(taskId, findingIndex, feedback) {
     body: JSON.stringify({ finding_index: findingIndex, feedback }),
   })
   if (!resp.ok) throw new Error(`提交反馈失败: ${resp.status}`)
+}
+
+/**
+ * 更新人工复核发现项的人工确认状态。
+ * @param {string} taskId - 任务 ID
+ * @param {number} findingIndex - 发现项索引
+ * @param {string} status - confirmed_fix / ai_correct / false_positive
+ */
+export async function updateHumanStatus(taskId, findingIndex, status) {
+  const resp = await fetch(
+    `${BASE_URL}/review/${encodeURIComponent(taskId)}/finding/${findingIndex}?status=${status}`,
+    { method: 'PATCH' },
+  )
+  if (!resp.ok) throw new Error(`更新状态失败: ${resp.status}`)
+  return resp.json()
 }
 
 /**

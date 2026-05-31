@@ -1,17 +1,26 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { getReviewResult, getReviewHistory } from '../api/review.js'
 import ReviewForm from '../components/ReviewForm.vue'
 import ResultTabs from '../components/ResultTabs.vue'
 import RiskCard from '../components/RiskCard.vue'
 import ComparisonView from '../components/ComparisonView.vue'
-import FeedbackButton from '../components/FeedbackButton.vue'
 
 const taskId = ref('')
 const result = ref(null)
 const history = ref(null)
 const polling = ref(false)
 const error = ref('')
+
+const manualPendingCount = computed(() => {
+  if (!result.value?.findings) return 0
+  const statuses = { pending: 0, confirmed_fix: 0, ai_correct: 0, false_positive: 0 }
+  result.value.findings.forEach(f => {
+    const s = f.human_status || 'pending'
+    if (statuses.hasOwnProperty(s)) statuses[s]++
+  })
+  return statuses
+})
 
 async function handleReviewStarted(id) {
   taskId.value = id
@@ -23,8 +32,7 @@ async function handleReviewStarted(id) {
 
 async function pollResult(id) {
   polling.value = true
-  const maxAttempts = 60
-  for (let i = 0; i < maxAttempts; i++) {
+  for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 2000))
     const res = await getReviewResult(id)
     if (res && res.status === 'completed') {
@@ -50,18 +58,32 @@ async function loadHistory(id) {
     history.value = null
   }
 }
+
+function onHumanReview({ index, status }) {
+  if (!result.value?.findings) return
+  result.value.findings[index].human_status = status
+}
 </script>
 
 <template>
   <div class="home">
-    <h1>AI PR Reviewer</h1>
+    <h1>☀️ AI PR Reviewer</h1>
+    <p class="subtitle">多 Agent 协作代码评审系统</p>
     <ReviewForm @review-started="handleReviewStarted" />
 
-    <div v-if="polling" class="polling">评审中，请稍候...</div>
+    <div v-if="polling" class="polling">
+      <span class="spinner"></span> 太阳神之眼正在审视代码...
+    </div>
     <p v-if="error" class="error">{{ error }}</p>
 
     <template v-if="result">
       <p class="summary">{{ result.summary }}</p>
+
+      <div v-if="manualPendingCount.pending > 0 || manualPendingCount.confirmed_fix > 0" class="pending-count">
+        待确认: {{ manualPendingCount.pending }} |
+        已确认: {{ manualPendingCount.confirmed_fix + manualPendingCount.ai_correct }} |
+        误报: {{ manualPendingCount.false_positive }}
+      </div>
 
       <ComparisonView
         v-if="history"
@@ -75,13 +97,10 @@ async function loadHistory(id) {
           v-for="(f, i) in findings"
           :key="i"
           :finding="f"
-        >
-          <FeedbackButton
-            v-if="taskId"
-            :task-id="taskId"
-            :finding-index="i"
-          />
-        </RiskCard>
+          :task-id="taskId"
+          :finding-index="i"
+          @human-review="onHumanReview"
+        />
       </ResultTabs>
     </template>
   </div>

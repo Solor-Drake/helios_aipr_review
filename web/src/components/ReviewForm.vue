@@ -5,6 +5,7 @@ import { submitReview } from '../api/review.js'
 const emit = defineEmits(['review-started'])
 
 const prUrl = ref('')
+const reviewMode = ref('auto')
 const loading = ref(false)
 const error = ref('')
 
@@ -16,7 +17,7 @@ async function submitForm() {
   }
   loading.value = true
   try {
-    const result = await submitReview(prUrl.value.trim())
+    const result = await submitReview(prUrl.value.trim(), reviewMode.value)
     emit('review-started', result.task_id)
   } catch (e) {
     error.value = e.message
@@ -28,15 +29,21 @@ async function submitForm() {
 
 <template>
   <form @submit.prevent="submitForm" class="review-form">
-    <input
-      v-model="prUrl"
-      type="url"
-      placeholder="https://github.com/owner/repo/pull/42"
-      :disabled="loading"
-    />
-    <button type="submit" :disabled="loading">
-      {{ loading ? '提交中...' : '开始评审' }}
-    </button>
+    <div class="form-row">
+      <input
+        v-model="prUrl"
+        type="url"
+        placeholder="https://github.com/owner/repo/pull/42"
+        :disabled="loading"
+      />
+      <select v-model="reviewMode" :disabled="loading">
+        <option value="auto">AI 自动模式</option>
+        <option value="manual">人工复核模式</option>
+      </select>
+      <button type="submit" :disabled="loading">
+        {{ loading ? '提交中...' : '开始评审' }}
+      </button>
+    </div>
     <p v-if="error" class="error">{{ error }}</p>
   </form>
 </template>
