@@ -139,24 +139,22 @@ class GitHubClient(BaseGitClient):
             timeout=30,
         )
 
-    def _ensure_token(self) -> str:
-        """延迟校验并返回 token，首次 API 调用时触发。
+    def _ensure_token(self) -> str | None:
+        """返回 GitHub Token，未配置时返回 None（降级为未认证模式）。
 
-        这样设计是为了让单元测试可以在不配置真实 Token 的情况下
-        创建 GitHubClient 实例并对 HTTP 层做 mock 断言。
+        未认证模式下 API 限速为 60 次/小时，认证后为 5000 次/小时。
         """
-        if not self._token:
-            raise ValueError(
-                "未配置 GITHUB_TOKEN 环境变量，请在 .env 中设置"
-            )
-        return self._token
+        return self._token or None
 
-    def _ensure_gh(self) -> Github:
-        """延迟初始化 PyGithub 客户端。"""
+    def _ensure_gh(self) -> Github | None:
+        """延迟初始化 PyGithub 客户端，无 token 时返回 None。"""
         if self._gh is None:
             token = self._ensure_token()
-            auth = Auth.Token(token)
-            self._gh = Github(auth=auth)
+            if token:
+                auth = Auth.Token(token)
+                self._gh = Github(auth=auth)
+            else:
+                self._gh = Github()  # 未认证模式，限速 60次/小时
         return self._gh
 
     # ── 公共接口 ──────────────────────────────────────────
@@ -168,10 +166,10 @@ class GitHubClient(BaseGitClient):
             f"/{pr_info.owner}/{pr_info.repo}"
             f"/pulls/{pr_info.pr_number}"
         )
-        headers = {
-            "Authorization": f"Bearer {self._ensure_token()}",
-            "Accept": "application/vnd.github.v3.diff",
-        }
+        headers = {"Accept": "application/vnd.github.v3.diff"}
+        token = self._ensure_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         response = await self._http.get(url, headers=headers)
         response.raise_for_status()
         logger.info(
@@ -191,13 +189,11 @@ class GitHubClient(BaseGitClient):
             f"/{pr_info.owner}/{pr_info.repo}"
             f"/pulls/{pr_info.pr_number}/files"
         )
-        resp = await self._http.get(
-            url,
-            headers={
-                "Authorization": f"Bearer {self._ensure_token()}",
-                "Accept": "application/vnd.github.v3+json",
-            },
-        )
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        token = self._ensure_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        resp = await self._http.get(url, headers=headers)
         resp.raise_for_status()
         files_data = resp.json()
 
@@ -238,13 +234,11 @@ class GitHubClient(BaseGitClient):
     async def _fetch_raw_content(self, contents_url: str) -> str | None:
         """获取文件的原始内容（base64 解码）。"""
         try:
-            resp = await self._http.get(
-                contents_url,
-                headers={
-                    "Authorization": f"Bearer {self._ensure_token()}",
-                    "Accept": "application/vnd.github.v3.raw",
-                },
-            )
+            raw_headers = {"Accept": "application/vnd.github.v3.raw"}
+            token = self._ensure_token()
+            if token:
+                raw_headers["Authorization"] = f"Bearer {token}"
+            resp = await self._http.get(contents_url, headers=raw_headers)
             resp.raise_for_status()
             return resp.text
         except Exception:
@@ -272,13 +266,9 @@ class GitLabClient(BaseGitClient):
             timeout=30,
         )
 
-    def _ensure_token(self) -> str:
-        """延迟校验并返回 token。"""
-        if not self._token:
-            raise ValueError(
-                "未配置 GITLAB_TOKEN 环境变量，请在 .env 中设置"
-            )
-        return self._token
+    def _ensure_token(self) -> str | None:
+        """返回 GitLab Token，未配置时返回 None（降级为未认证模式）。"""
+        return self._token or None
 
     async def get_pr_diff(self, pr_info: PRInfo) -> str:
         """获取 GitLab MR 的变更 diff。"""
@@ -289,7 +279,7 @@ class GitLabClient(BaseGitClient):
         )
         resp = await self._http.get(
             url,
-            headers={"PRIVATE-TOKEN": self._ensure_token()},
+            headers=({"PRIVATE-TOKEN": token} if (token := self._ensure_token()) else None),
         )
         resp.raise_for_status()
         data = resp.json()
@@ -313,7 +303,7 @@ class GitLabClient(BaseGitClient):
         )
         resp = await self._http.get(
             url,
-            headers={"PRIVATE-TOKEN": self._ensure_token()},
+            headers=({"PRIVATE-TOKEN": token} if (token := self._ensure_token()) else None),
         )
         resp.raise_for_status()
         data = resp.json()
@@ -343,7 +333,7 @@ class GitLabClient(BaseGitClient):
         resp = await self._http.post(
             url,
             json={"body": body},
-            headers={"PRIVATE-TOKEN": self._ensure_token()},
+            headers=({"PRIVATE-TOKEN": token} if (token := self._ensure_token()) else None),
         )
         resp.raise_for_status()
         logger.info("已向 GitLab MR !%d 发布评论", pr_info.pr_number)
