@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { updateHumanStatus } from '../api/review.js'
 
 const props = defineProps({
   finding: { type: Object, required: true },
@@ -15,9 +16,15 @@ function riskClass(level) {
   return `risk-${level}`
 }
 
-function setHumanStatus(status) {
-  humanStatus.value = status
-  emit('human-review', { index: props.findingIndex, status })
+async function setHumanStatus(status) {
+  if (!props.taskId) return
+  try {
+    await updateHumanStatus(props.taskId, props.findingIndex, status)
+    humanStatus.value = status
+    emit('human-review', { index: props.findingIndex, status })
+  } catch (e) {
+    console.error('更新状态失败:', e)
+  }
 }
 </script>
 
