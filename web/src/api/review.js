@@ -34,6 +34,21 @@ export async function submitFeedback(taskId, findingIndex, feedback) {
 }
 
 /**
+ * 更新人工复核发现项的人工确认状态。
+ * @param {string} taskId - 任务 ID
+ * @param {number} findingIndex - 发现项索引
+ * @param {string} status - confirmed_fix / ai_correct / false_positive
+ */
+export async function updateHumanStatus(taskId, findingIndex, status) {
+  const resp = await fetch(
+    `${BASE_URL}/review/${encodeURIComponent(taskId)}/finding/${findingIndex}?status=${status}`,
+    { method: 'PATCH' },
+  )
+  if (!resp.ok) throw new Error(`更新状态失败: ${resp.status}`)
+  return resp.json()
+}
+
+/**
  * 查询修复验证对比数据。
  * @param {string} taskId - 任务 ID
  * @returns {Promise<{comparison: Object, fixed_items: Array, new_items: Array, unresolved_items: Array}>}

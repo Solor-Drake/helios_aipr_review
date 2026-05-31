@@ -138,6 +138,20 @@ async def submit_feedback(task_id: str, feedback: FeedbackRequest) -> None:
                 task_id, feedback.finding_index, feedback.feedback.value)
 
 
+@app.patch("/api/v1/review/{task_id}/finding/{finding_index}")
+async def update_human_status(task_id: str, finding_index: int, status: str = "pending") -> dict:
+    """更新人工复核模式下某条发现的人工确认状态。"""
+    task = _tasks.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
+    findings = task.get("result").findings if task.get("result") else []
+    if finding_index < 0 or finding_index >= len(findings):
+        raise HTTPException(status_code=400, detail="finding_index 越界")
+    findings[finding_index].human_status = status
+    logger.info("人工状态更新: task_id=%s, index=%d, status=%s", task_id, finding_index, status)
+    return {"task_id": task_id, "finding_index": finding_index, "human_status": status}
+
+
 # ── 评审流水线 ────────────────────────────────────────────────
 
 
