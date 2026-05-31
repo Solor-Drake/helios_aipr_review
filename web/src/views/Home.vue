@@ -34,17 +34,27 @@ async function pollResult(id) {
   polling.value = true
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 2000))
-    const res = await getReviewResult(id)
-    if (res && res.status === 'completed') {
-      result.value = res
-      polling.value = false
-      await loadHistory(id)
-      return
-    }
-    if (res && res.status === 'failed') {
-      error.value = '评审失败，请重试'
-      polling.value = false
-      return
+    try {
+      const res = await getReviewResult(id)
+      if (!res) continue  // 404，继续轮询
+      if (res.status === 'completed') {
+        result.value = res
+        polling.value = false
+        await loadHistory(id)
+        return
+      }
+      if (res.status === 'failed') {
+        error.value = res.summary || '评审失败，请重试'
+        polling.value = false
+        return
+      }
+    } catch (e) {
+      // 网络异常等意外错误，继续轮询直到超时
+      if (i >= 59) {
+        error.value = `评审超时或连接异常: ${e.message}`
+        polling.value = false
+        return
+      }
     }
   }
   polling.value = false
@@ -74,7 +84,10 @@ function onHumanReview({ index, status }) {
     <div v-if="polling" class="polling">
       <span class="spinner"></span> 太阳神之眼正在审视代码...
     </div>
-    <p v-if="error" class="error">{{ error }}</p>
+    <div v-if="error" class="error-box">
+      <span class="error-icon">⚠️</span>
+      <span class="error-text">{{ error }}</span>
+    </div>
 
     <template v-if="result">
       <p class="summary">{{ result.summary }}</p>

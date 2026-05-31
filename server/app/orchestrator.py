@@ -89,6 +89,14 @@ class Orchestrator:
         # 3. 并行调用四个 Agent
         agent_reports = await self._run_agents(code_context, diff)
 
+        # 所有 Agent 均失败时快速失败，避免返回误导性的"0 发现"结果
+        if not agent_reports:
+            await git_client.close()
+            raise RuntimeError(
+                "所有 AI Agent 均评审失败（安全/性能/逻辑/风格共 4 个 Agent 无一成功）。"
+                "请检查：1) API Key 是否有效 2) AI 服务是否可访问 3) 网络连接是否正常。"
+            )
+
         # 4. 冲突检测
         conflicts = self._detect_conflicts(agent_reports)
 

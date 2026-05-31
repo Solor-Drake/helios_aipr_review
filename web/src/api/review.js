@@ -68,7 +68,14 @@ export async function getReviewResult(taskId) {
   const resp = await fetch(`${BASE_URL}/review/${encodeURIComponent(taskId)}`)
   if (!resp.ok) {
     if (resp.status === 404) return null
-    throw new Error(`查询失败: ${resp.status}`)
+    // 尝试解析服务端返回的错误详情（如 500），作为失败状态返回
+    const body = await resp.json().catch(() => ({}))
+    return {
+      task_id: taskId,
+      status: 'failed',
+      summary: body.detail || `服务器错误: ${resp.status}`,
+      findings: [],
+    }
   }
   return resp.json()
 }
