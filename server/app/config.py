@@ -31,7 +31,7 @@ class AIConfig(BaseSettings):
     default_model: str = "qwen-turbo"
 
     # LLM 调用参数
-    temperature: float = 0.1  # 低温度保证评审结果稳定
+    temperature: float = 0.0  # temperature=0 确保评审结果确定性
     max_tokens: int = 4096
     request_timeout: int = 120  # 单次 API 调用超时（秒）
 
