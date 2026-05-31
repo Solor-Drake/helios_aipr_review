@@ -90,3 +90,33 @@ echo "  1. 编辑 .env 文件: nano .env"
 echo "  2. 启动后端服务: source venv/bin/activate && uvicorn server.app.main:app --reload --port 8000"
 echo "  3. 测试健康检查: curl http://localhost:8000/health"
 echo "  4. 查看 API 文档: http://localhost:8000/docs"
+
+# 安装 nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# 重新加载 shell 配置（或重新登录）
+source ~/.bashrc   # 若是 zsh 则 source ~/.zshrc
+
+nvm --version
+
+# 安装并使用最新的 LTS 版本
+nvm install --lts
+
+# 设置为默认版本
+nvm alias default 'lts/*'
+
+node -v     # 应显示如 v20.11.1
+npm -v      # 应显示如 10.2.4
+
+# 创建全局包目录
+mkdir -p ~/.npm-global
+
+# 将 npm 全局 prefix 指向该目录
+npm config set prefix ~/.npm-global
+
+# 将自定义 bin 目录加入 PATH
+echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# 国内服务器临时设置（立即生效，当前终端）
+# export NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node
