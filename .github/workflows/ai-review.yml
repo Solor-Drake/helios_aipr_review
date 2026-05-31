@@ -1,8 +1,12 @@
 name: AI PR Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_url:
+        description: 'PR URL to review'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,7 +22,7 @@ jobs:
           REVIEW_API_URL: ${{ secrets.REVIEW_API_URL }}
           REVIEW_API_KEY: ${{ secrets.REVIEW_API_KEY }}
         run: |
-          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_URL="${{ inputs.pr_url }}"
           echo "开始评审 PR: $PR_URL"
 
           TASK_RESP=$(curl -s -X POST "${REVIEW_API_URL}/api/v1/review" \
