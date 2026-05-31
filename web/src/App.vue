@@ -155,6 +155,32 @@ button.active {
   font-size: 0.9em;
 }
 
+.error-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  border-left: 4px solid #e74c3c;
+  border-radius: 8px;
+}
+
+.error-icon {
+  font-size: 1.2em;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.error-text {
+  color: #f5a5a0;
+  font-size: 0.9em;
+  line-height: 1.6;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
 .polling {
   text-align: center;
   padding: 24px;

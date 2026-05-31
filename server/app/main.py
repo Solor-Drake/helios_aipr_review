@@ -18,7 +18,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from server.app.config import get_settings
 from server.app.models import (
-    HealthResponse,
     ReviewRequest,
     ReviewResponse,
     ReviewResult,
@@ -28,6 +27,7 @@ from server.app.models import (
 )
 from server.app.orchestrator import Orchestrator
 from server.app.history_tracker import HistoryTracker
+from server.app.error_classifier import classify_error
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,18 @@ _tasks: dict[str, dict] = {}
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     app.state.settings = settings
+
+    # 启动时校验 AI 服务是否可用
+    if not settings.ai.is_api_key_configured():
+        logger.warning("=" * 60)
+        logger.warning("⚠️  未检测到有效的大模型 API Key！")
+        logger.warning("   AI 评审功能将不可用，所有评审请求会被拒绝。")
+        logger.warning("   请在项目根目录的 .env 文件中配置以下任一变量：")
+        logger.warning("     DASHSCOPE_API_KEY=你的阿里云百炼 Key")
+        logger.warning("     DEEPSEEK_API_KEY=你的 DeepSeek Key")
+        logger.warning("   当前激活的服务商: %s", settings.ai.active_provider_name())
+        logger.warning("=" * 60)
+
     yield
 
 
@@ -67,9 +79,16 @@ app.add_middleware(
 # ── 健康检查 ──────────────────────────────────────────────────
 
 
-@app.get("/health", response_model=HealthResponse)
-async def health_check() -> HealthResponse:
-    return HealthResponse()
+@app.get("/health")
+async def health_check():
+    """健康检查，同时报告 AI 服务配置状态。"""
+    settings = get_settings()
+    return {
+        "status": "ok",
+        "version": "0.1.0",
+        "timestamp": datetime.now().isoformat(),
+        "ai_configured": settings.ai.is_api_key_configured(),
+    }
 
 
 # ── 评审任务 API ──────────────────────────────────────────────
@@ -78,6 +97,17 @@ async def health_check() -> HealthResponse:
 @app.post("/api/v1/review", response_model=ReviewResponse, status_code=202)
 async def submit_review(request: ReviewRequest) -> ReviewResponse:
     """提交代码评审任务，异步启动评审流水线。"""
+    settings = get_settings()
+    if not settings.ai.is_api_key_configured():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"AI 服务未配置：请在 .env 文件中设置有效的 "
+                f"{settings.ai.active_provider_name()}。"
+                f"当前值为占位符，无法进行代码评审。"
+            ),
+        )
+
     task_id = ReviewResponse().task_id
     _tasks[task_id] = {
         "task_id": task_id,
@@ -100,7 +130,13 @@ async def get_review_result(task_id: str) -> ReviewResult:
         raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
 
     if task["status"] == TaskStatus.FAILED:
-        raise HTTPException(status_code=500, detail=task.get("error", "未知错误"))
+        return ReviewResult(
+            task_id=task_id,
+            pr_url=task["pr_url"],
+            status=TaskStatus.FAILED,
+            summary=task.get("error", "未知错误"),
+            findings=[],
+        )
 
     if task["status"] == TaskStatus.COMPLETED and task["result"]:
         return task["result"]
@@ -179,4 +215,4 @@ async def _run_review_pipeline(task_id: str, pr_url: str) -> None:
     except Exception as exc:
         logger.exception("评审失败: task_id=%s", task_id)
         task["status"] = TaskStatus.FAILED
-        task["error"] = str(exc)
+        task["error"] = classify_error(exc)

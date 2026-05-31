@@ -44,6 +44,9 @@ async function submitForm() {
         {{ loading ? '提交中...' : '开始评审' }}
       </button>
     </div>
-    <p v-if="error" class="error">{{ error }}</p>
+    <div v-if="error" class="error-box">
+      <span class="error-icon">⚠️</span>
+      <span class="error-text">{{ error }}</span>
+    </div>
   </form>
 </template>
