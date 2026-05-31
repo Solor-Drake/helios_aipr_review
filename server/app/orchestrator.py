@@ -47,11 +47,15 @@ class Orchestrator:
 
     def __init__(self) -> None:
         self._context_builder = ContextBuilder()
+        self._cache: dict[str, ReviewResult] = {}  # diff_hash → result
 
     # ── 主流程 ──────────────────────────────────────────────
 
     async def review_pr(self, pr_url: str, review_mode: str = "auto") -> ReviewResult:
         """对指定 PR 执行完整评审流程。
+
+        同一份 diff 的评审结果会被缓存，确保人工确认有意义：
+        相同代码变更 → 相同评审结果 → 人工标注可追溯。
 
         Args:
             pr_url: GitHub 或 GitLab 的 PR URL。
@@ -68,6 +72,14 @@ class Orchestrator:
         git_client = create_git_client(pr_url)
 
         diff = await git_client.get_pr_diff(pr_info)
+
+        # 缓存检查：同一份 diff 返回缓存结果，确保结果确定性
+        import hashlib
+        diff_hash = hashlib.md5(diff.encode()).hexdigest() if diff else ""
+        if diff_hash in self._cache:
+            logger.info("命中缓存: diff_hash=%s, 跳过评审", diff_hash)
+            return self._cache[diff_hash]
+
         file_changes = await git_client.get_pr_files(pr_info)
 
         # 2. 构建代码上下文
@@ -141,6 +153,11 @@ class Orchestrator:
 
         # 清理
         await git_client.close()
+
+        # 缓存本次结果
+        if diff_hash:
+            self._cache[diff_hash] = result
+
         return result
 
     # ── Agent 并行调用 ──────────────────────────────────────
