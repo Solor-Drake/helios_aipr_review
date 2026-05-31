@@ -5,11 +5,11 @@ const BASE_URL = '/api/v1'
  * @param {string} prUrl - GitHub/GitLab PR URL
  * @returns {Promise<{task_id: string, status: string}>}
  */
-export async function submitReview(prUrl) {
+export async function submitReview(prUrl, reviewMode = 'auto') {
   const resp = await fetch(`${BASE_URL}/review`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pr_url: prUrl }),
+    body: JSON.stringify({ pr_url: prUrl, review_mode: reviewMode }),
   })
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
