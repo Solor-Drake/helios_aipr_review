@@ -336,6 +336,12 @@ button.active {
   margin-bottom: 10px;
 }
 
+.risk-card.dismissed {
+  opacity: 0.4;
+  border-left-color: #666;
+  filter: grayscale(40%);
+}
+
 .suggestion {
   background: rgba(0,0,0,0.3);
   padding: 12px;

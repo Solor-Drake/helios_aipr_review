@@ -14,7 +14,12 @@ const error = ref('')
 
 const manualPendingCount = computed(() => {
   if (!result.value?.findings) return 0
-  return result.value.findings.filter(f => f.human_status === 'pending').length
+  const statuses = { pending: 0, confirmed_fix: 0, ai_correct: 0, false_positive: 0 }
+  result.value.findings.forEach(f => {
+    const s = f.human_status || 'pending'
+    if (statuses.hasOwnProperty(s)) statuses[s]++
+  })
+  return statuses
 })
 
 async function handleReviewStarted(id) {
@@ -74,8 +79,10 @@ function onHumanReview({ index, status }) {
     <template v-if="result">
       <p class="summary">{{ result.summary }}</p>
 
-      <div v-if="manualPendingCount > 0" class="pending-count">
-        待确认: {{ manualPendingCount }} 项
+      <div v-if="manualPendingCount.pending > 0 || manualPendingCount.confirmed_fix > 0" class="pending-count">
+        待确认: {{ manualPendingCount.pending }} |
+        已确认: {{ manualPendingCount.confirmed_fix + manualPendingCount.ai_correct }} |
+        误报: {{ manualPendingCount.false_positive }}
       </div>
 
       <ComparisonView
