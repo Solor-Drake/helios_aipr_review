@@ -61,6 +61,22 @@ class FeedbackType(str, Enum):
     DOWNVOTE = "down"
 
 
+class ReviewMode(str, Enum):
+    """评审模式。"""
+
+    AUTO = "auto"      # AI 自动模式：直接输出最终报告
+    MANUAL = "manual"  # 人工复核模式：每个风险点需人工确认
+
+
+class HumanReviewStatus(str, Enum):
+    """人工复核状态下单条发现的确认状态。"""
+
+    PENDING = "pending"        # 待确认
+    CONFIRMED_FIX = "confirmed_fix"  # 开发者确认将修复
+    AI_CORRECT = "ai_correct"  # AI 判断正确
+    FALSE_POSITIVE = "false_positive"  # 误报
+
+
 # =============================================================================
 # 请求模型
 # =============================================================================
@@ -70,7 +86,7 @@ class ReviewRequest(BaseModel):
     """评审任务提交请求。
 
     Example:
-        {"pr_url": "https://github.com/owner/repo/pull/42"}
+        {"pr_url": "https://github.com/owner/repo/pull/42", "review_mode": "auto"}
     """
 
     pr_url: str = Field(
@@ -78,6 +94,10 @@ class ReviewRequest(BaseModel):
         min_length=1,
         description="GitHub 或 GitLab PR 的完整 URL",
         examples=["https://github.com/owner/repo/pull/42"],
+    )
+    review_mode: ReviewMode = Field(
+        default=ReviewMode.AUTO,
+        description="评审模式: auto(AI自动) / manual(人工复核)",
     )
 
     @field_validator("pr_url")
@@ -147,6 +167,8 @@ class ReviewFinding(BaseModel):
     risk_level: RiskLevel
     arbitrated: bool = False
     repair_status: RepairStatus = RepairStatus.NEW
+    human_status: HumanReviewStatus = HumanReviewStatus.PENDING
+    review_mode: ReviewMode = ReviewMode.AUTO
     file: str
     line: int
     title: str
