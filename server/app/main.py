@@ -82,6 +82,7 @@ async def submit_review(request: ReviewRequest) -> ReviewResponse:
     _tasks[task_id] = {
         "task_id": task_id,
         "pr_url": request.pr_url,
+        "review_mode": request.review_mode.value,
         "status": TaskStatus.PENDING,
         "result": None,
         "error": None,
@@ -161,9 +162,10 @@ async def _run_review_pipeline(task_id: str, pr_url: str) -> None:
         return
 
     try:
+        review_mode = task.get("review_mode", "auto")
         task["status"] = TaskStatus.RUNNING
         orchestrator = Orchestrator()
-        result = await orchestrator.review_pr(pr_url)
+        result = await orchestrator.review_pr(pr_url, review_mode)
 
         task["status"] = TaskStatus.COMPLETED
         task["result"] = result

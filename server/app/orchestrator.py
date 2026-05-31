@@ -17,6 +17,8 @@ from server.app.models import (
     AgentReport,
     AgentType,
     ReviewFinding,
+    ReviewMode,
+    HumanReviewStatus,
     ReviewResult,
     ComparisonSummary,
     RepairStatus,
@@ -48,11 +50,12 @@ class Orchestrator:
 
     # ── 主流程 ──────────────────────────────────────────────
 
-    async def review_pr(self, pr_url: str) -> ReviewResult:
+    async def review_pr(self, pr_url: str, review_mode: str = "auto") -> ReviewResult:
         """对指定 PR 执行完整评审流程。
 
         Args:
             pr_url: GitHub 或 GitLab 的 PR URL。
+            review_mode: 评审模式 "auto" / "manual"。
 
         Returns:
             包含所有发现项、风险标注和对比摘要的完整评审结果。
@@ -100,6 +103,8 @@ class Orchestrator:
                 risk_level=label_risk(f),
                 arbitrated=(f.agent == AgentType.ARBITRATOR or self._was_arbitrated(f, conflicts)),
                 repair_status=RepairStatus.NEW,
+                human_status=HumanReviewStatus.PENDING if review_mode == "manual" else HumanReviewStatus.PENDING,
+                review_mode=ReviewMode.MANUAL if review_mode == "manual" else ReviewMode.AUTO,
                 file=f.file,
                 line=f.line,
                 title=f.title,
