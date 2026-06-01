@@ -1,6 +1,13 @@
 # AI PR Reviewer — 多Agent协作代码评审系统
 
-一个由大语言模型驱动的、具备“协作-仲裁”机制的智能代码评审工具。
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
+[![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/tests-68%20passed-success.svg)](server/tests/)
+[![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+一个由大语言模型驱动的、具备”协作-仲裁”机制的智能代码评审工具。
 它模拟真实团队的评审过程，让**安全、性能、逻辑、风格**四位专家并行分析代码变更，
 在出现分歧时引入**仲裁 Agent** 统一意见，最终通过 CI/CD 无缝融入开发流程。
 
@@ -160,3 +167,25 @@ chore: 更新 .gitignore
 | `web/src/api/` | 前端 API 调用封装 |
 | `docs/` | 设计文档 |
 | `.github/workflows/` | CI/CD 配置 |
+
+---
+
+## 🎬 Demo 演示
+
+[▶️ 观看 Demo 视频](https://你的视频链接)
+
+---
+
+## 👤 作者
+
+本项目由 **Dragon Roar** 独立设计并实现。
+
+- 系统架构设计
+- 后端全栈开发（FastAPI + 四个 Agent + 编排 + 仲裁 + 风险标注 + 修复验证）
+- 前端全栈开发（Vue3 + Vite + 太阳神主题 + 人工复核交互）
+- Docker 容器化部署 + GitHub Action CI/CD
+- 68 个单元测试 / 23 个 PR
+
+## 📄 许可
+
+本项目基于 [MIT License](LICENSE) 开源。
