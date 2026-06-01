@@ -11,6 +11,7 @@ const tabs = [
   { key: 'performance', label: '性能' },
   { key: 'logic', label: '逻辑' },
   { key: 'style', label: '风格' },
+  { key: 'arbitrator', label: '仲裁' },
 ]
 const activeTab = ref('all')
 
