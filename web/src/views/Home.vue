@@ -12,9 +12,14 @@ const history = ref(null)
 const polling = ref(false)
 const error = ref('')
 
+const isManualMode = computed(() => {
+  if (!result.value?.findings || result.value.findings.length === 0) return false
+  return result.value.findings[0].review_mode === 'manual'
+})
+
 const manualPendingCount = computed(() => {
-  if (!result.value?.findings) return 0
   const statuses = { pending: 0, confirmed_fix: 0, ai_correct: 0, false_positive: 0 }
+  if (!result.value?.findings) return statuses
   result.value.findings.forEach(f => {
     const s = f.human_status || 'pending'
     if (statuses.hasOwnProperty(s)) statuses[s]++
@@ -73,6 +78,10 @@ function onHumanReview({ index, status }) {
   if (!result.value?.findings) return
   result.value.findings[index].human_status = status
 }
+
+function hasComparison(c) {
+  return c && (c.fixed_count > 0 || c.new_count > 0 || c.unresolved_count > 0)
+}
 </script>
 
 <template>
@@ -92,14 +101,14 @@ function onHumanReview({ index, status }) {
     <template v-if="result">
       <p class="summary">{{ result.summary }}</p>
 
-      <div v-if="manualPendingCount.pending > 0 || manualPendingCount.confirmed_fix > 0" class="pending-count">
+      <div v-if="isManualMode" class="pending-count">
         待确认: {{ manualPendingCount.pending }} |
         已确认: {{ manualPendingCount.confirmed_fix + manualPendingCount.ai_correct }} |
         误报: {{ manualPendingCount.false_positive }}
       </div>
 
       <ComparisonView
-        v-if="history"
+        v-if="history && hasComparison(history.comparison)"
         :comparison="history.comparison"
         :fixed-items="history.fixed_items"
         :unresolved-items="history.unresolved_items"

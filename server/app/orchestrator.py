@@ -78,7 +78,11 @@ class Orchestrator:
         diff_hash = hashlib.md5(diff.encode()).hexdigest() if diff else ""
         if diff_hash in self._cache:
             logger.info("命中缓存: diff_hash=%s, 跳过评审", diff_hash)
-            return self._cache[diff_hash]
+            cached = self._cache[diff_hash]
+            # 更新 review_mode：同一份代码切换模式不重跑 LLM，只改标记
+            for f in cached.findings:
+                f.review_mode = ReviewMode.MANUAL if review_mode == "manual" else ReviewMode.AUTO
+            return cached
 
         file_changes = await git_client.get_pr_files(pr_info)
 
