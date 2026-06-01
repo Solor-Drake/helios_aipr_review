@@ -115,6 +115,36 @@ docker compose up -d
 
 ---
 
+## 📦 第三方依赖
+
+### 后端（Python）
+
+| 包名 | 版本 | 用途 |
+|------|------|------|
+| fastapi | >=0.110 | Web 框架 |
+| uvicorn | >=0.29 | ASGI 服务器 |
+| httpx | >=0.27 | 异步 HTTP 客户端 |
+| openai | >=1.30 | LLM API 调用（兼容百炼/DeepSeek） |
+| PyGithub | >=2.3 | GitHub REST API |
+| tree-sitter | >=0.21 | AST 代码解析引擎 |
+| tree-sitter-python | >=0.23 | Python 语法解析器 |
+| aiosqlite | >=0.20 | 异步 SQLite |
+| pydantic | >=2.7 | 数据校验与序列化 |
+| pydantic-settings | >=2.2 | 环境变量加载 |
+| python-dotenv | >=1.0 | .env 解析 |
+| pytest | >=8.2 | 测试框架 |
+| pytest-asyncio | >=0.23 | 异步测试支持 |
+
+### 前端（Node.js）
+
+| 包名 | 版本 | 用途 |
+|------|------|------|
+| vue | ^3.4 | 渐进式前端框架 |
+| vite | ^5.4 | 构建工具与开发服务器 |
+| @vitejs/plugin-vue | ^5.0 | Vite Vue3 插件 |
+
+---
+
 ## 🤝 协作规范
 
 ### 分支命名
