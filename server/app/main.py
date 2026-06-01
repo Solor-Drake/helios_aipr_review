@@ -152,7 +152,17 @@ async def get_review_result(task_id: str) -> ReviewResult:
 
 @app.get("/api/v1/review/{task_id}/history", response_model=HistoryComparison)
 async def get_review_history(task_id: str) -> HistoryComparison:
-    """查询修复验证对比数据。"""
+    """查询修复验证对比数据。
+
+    工作原理：从 SQLite 中查找同一 PR URL 的上一次评审记录，
+    基于 (file, line) 匹配判断每条发现的修复状态。
+
+    生产场景：同一个 PR 经过多次提交、多次评审后，开发者可直观看到
+    哪些问题已被修复、哪些是新引入的、哪些仍未处理。
+
+    演示/开发场景：首次评审无历史记录，所有发现均标记为 new。
+    如需查看对比效果，对同一 PR 执行两次评审即可触发。
+    """
     task = _tasks.get(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
